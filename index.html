@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モールス信号 翻訳機</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto+Mono:wght@500&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .morse-font {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .btn-toggle {
+            transition: all 0.3s ease;
+        }
+        .btn-toggle.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-slate-800 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold flex items-center gap-2">
+                <i class="fa-solid fa-tower-broadcast"></i>
+                モールス信号 翻訳機
+            </h1>
+            <div class="text-xs md:text-sm text-gray-400">Ver 1.0</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <!-- Mode Selection -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2 font-bold text-gray-700">
+                    <i class="fa-solid fa-language"></i> 変換モード:
+                </div>
+                <div class="flex bg-gray-100 p-1 rounded-lg">
+                    <button id="mode-en" class="btn-toggle active px-6 py-2 rounded-md text-sm font-medium" onclick="setMode('EN')">
+                        International (英文)
+                    </button>
+                    <button id="mode-ja" class="btn-toggle px-6 py-2 rounded-md text-sm font-medium" onclick="setMode('JA')">
+                        和文 (カナ)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Translation Area -->
+        <div class="grid md:grid-cols-2 gap-6">
+            
+            <!-- Input Card -->
+            <div class="bg-white rounded-xl shadow-md flex flex-col overflow-hidden">
+                <div class="bg-gray-50 border-b px-4 py-3 flex justify-between items-center">
+                    <span class="font-bold text-gray-700">入力 (モールス信号 or テキスト)</span>
+                    <button onclick="clearAll()" class="text-xs text-red-500 hover:text-red-700 font-bold px-2 py-1 rounded hover:bg-red-50 transition">
+                        <i class="fa-solid fa-trash"></i> クリア
+                    </button>
+                </div>
+                <div class="p-4 flex-grow flex flex-col h-64 md:h-80">
+                    <textarea id="input-text" 
+                        class="w-full h-full p-3 resize-none focus:outline-none text-lg morse-font text-gray-700 placeholder-gray-400"
+                        placeholder="ここにモールス信号（例: ... --- ...）またはテキストを入力してください。自動判別して変換します。"></textarea>
+                    
+                    <!-- Quick Input Buttons for Morse -->
+                    <div class="mt-3 flex gap-2 justify-center">
+                        <button onclick="insertChar('.')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-lg text-2xl transition">・</button>
+                        <button onclick="insertChar('-')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-lg text-2xl transition">－</button>
+                        <button onclick="insertChar(' ')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 rounded-lg text-sm transition">空白(区切り)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Card -->
+            <div class="bg-white rounded-xl shadow-md flex flex-col overflow-hidden border-2 border-transparent transition-colors duration-300" id="output-card">
+                <div class="bg-blue-50 border-b border-blue-100 px-4 py-3 flex justify-between items-center">
+                    <span class="font-bold text-blue-800">翻訳結果</span>
+                    <button onclick="copyOutput()" class="text-xs text-blue-600 hover:text-blue-800 font-bold px-2 py-1 rounded hover:bg-blue-100 transition">
+                        <i class="fa-regular fa-copy"></i> コピー
+                    </button>
+                </div>
+                <div class="p-4 flex-grow h-64 md:h-80 bg-blue-50/30">
+                    <textarea id="output-text" readonly
+                        class="w-full h-full p-3 resize-none bg-transparent focus:outline-none text-lg font-bold text-slate-800"
+                        placeholder="結果がここに表示されます"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help/Reference Section -->
+        <div class="mt-8 bg-white rounded-xl shadow-sm p-6">
+            <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">使い方・ヒント</h3>
+            <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                <li>モールス信号を入力するとテキストに、テキストを入力するとモールス信号に<strong>自動的に変換</strong>されます。</li>
+                <li>文字と文字の間は「スペース1つ」で区切ってください。</li>
+                <li>単語と単語の間は「スペース2つ」または「/」で区切るのが一般的です。</li>
+                <li>和文モードでは、濁点（゛）や半濁点（゜）は自動的に前の文字と結合して表示されます（例: カ＋゛→ ガ）。</li>
+                <li>入力欄の下にあるボタンを使ってマウスやタップでモールス信号を入力できます。</li>
+            </ul>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-400 py-6 text-center text-sm">
+        <p>&copy; 2024 Morse Code Decoder Web App</p>
+    </footer>
+
+    <script>
+        // --- Data Definitions ---
+
+        // International Morse Code (English)
+        const MORSE_EN = {
+            'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
+            'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
+            'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
+            'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+            'Y': '-.--', 'Z': '--..',
+            '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....',
+            '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----',
+            '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--',
+            '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...',
+            ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-',
+            '"': '.-..-.', '$': '...-..-', '@': '.--.-.'
+        };
+
+        // Wabun Morse Code (Japanese)
+        const MORSE_JA = {
+            'イ': '.-', 'ロ': '.-.-', 'ハ': '-...', 'ニ': '-.-.', 'ホ': '-..',
+            'ヘ': '.', 'ト': '..-.', 'チ': '..-.', 'リ': '--.', 'ヌ': '....',
+            'ル': '-.--.', 'ヲ': '.---', 'ワ': '-.-', 'カ': '.-..', 'ヨ': '--',
+            'タ': '-.', 'レ': '---', 'ソ': '---.', 'ツ': '.--.', 'ネ': '--.-',
+            'ナ': '.-.', 'ラ': '...', 'ム': '-', 'ウ': '..-', 'ヰ': '.-..-',
+            'ノ': '..--', 'オ': '.-...', 'ク': '...-', 'ヤ': '.--', 'マ': '-..-',
+            'ケ': '-.--', 'フ': '--..', 'コ': '----', 'エ': '-.---', 'テ': '.-.--',
+            'ア': '--.--', 'サ': '-.-.-', 'キ': '-.-..', 'ユ': '-..--', 'メ': '-...-',
+            'ミ': '..-.-', 'シ': '--.-.', 'ヱ': '.--..', 'ヒ': '--..-', 'モ': '-..-.-',
+            'セ': '.---.', 'ス': '---.-', 'ン': '.-.-.', 
+            '゛': '..', '゜': '..--.', // Dakuten, Handakuten
+            'ー': '.--.-', '、': '.-.-.-', '」': '.-.-..', '（': '-.--.-', '）': '.--..-',
+            '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....',
+            '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----'
+        };
+
+        // Reverse Mapping (Morse -> Char)
+        const REVERSE_EN = Object.fromEntries(Object.entries(MORSE_EN).map(([k, v]) => [v, k]));
+        const REVERSE_JA = Object.fromEntries(Object.entries(MORSE_JA).map(([k, v]) => [v, k]));
+
+        // Japanese Dakuten Combination Map
+        const DAKUTEN_MAP = {
+            'カ': 'ガ', 'キ': 'ギ', 'ク': 'グ', 'ケ': 'ゲ', 'コ': 'ゴ',
+            'サ': 'ザ', 'シ': 'ジ', 'ス': 'ズ', 'セ': 'ゼ', 'ソ': 'ゾ',
+            'タ': 'ダ', 'チ': 'ヂ', 'ツ': 'ヅ', 'テ': 'デ', 'ト': 'ド',
+            'ハ': 'バ', 'ヒ': 'ビ', 'フ': 'ブ', 'ヘ': 'ベ', 'ホ': 'ボ',
+            'ウ': 'ヴ'
+        };
+        const HANDAKUTEN_MAP = {
+            'ハ': 'パ', 'ヒ': 'ピ', 'フ': 'プ', 'ヘ': 'ペ', 'ホ': 'ポ'
+        };
+
+        // --- State & Elements ---
+        let currentMode = 'EN'; // 'EN' or 'JA'
+        const inputEl = document.getElementById('input-text');
+        const outputEl = document.getElementById('output-text');
+        const btnEn = document.getElementById('mode-en');
+        const btnJa = document.getElementById('mode-ja');
+
+        // --- Core Functions ---
+
+        function setMode(mode) {
+            currentMode = mode;
+            if (mode === 'EN') {
+                btnEn.classList.add('active');
+                btnEn.classList.remove('bg-gray-100', 'text-gray-700');
+                btnJa.classList.remove('active');
+                btnJa.classList.add('bg-gray-100', 'text-gray-700');
+            } else {
+                btnJa.classList.add('active');
+                btnJa.classList.remove('bg-gray-100', 'text-gray-700');
+                btnEn.classList.remove('active');
+                btnEn.classList.add('bg-gray-100', 'text-gray-700');
+            }
+            processInput(); // Re-process current input
+        }
+
+        function isMorse(text) {
+            // Check if text consists primarily of dots, dashes, spaces, and slashes
+            const trimmed = text.trim();
+            if (trimmed.length === 0) return false;
+            // Allow minimal other chars but look for high ratio of morse chars
+            const morseChars = new Set(['.', '-', ' ', '/', '　']);
+            let count = 0;
+            for (let char of trimmed) {
+                if (morseChars.has(char)) count++;
+            }
+            return (count / trimmed.length) > 0.8;
+        }
+
+        function morseToText(morse) {
+            const map = currentMode === 'EN' ? REVERSE_EN : REVERSE_JA;
+            // Normalize spaces: turn wide spaces or slashes into a common delimiter
+            // Standard convention: 1 space between chars, 3 spaces (or /) between words
+            
+            // Strategy: Split by any whitespace sequence
+            const tokens = morse.trim().replace(/　/g, ' ').replace(/\//g, ' / ').split(/\s+/);
+            
+            let result = [];
+            
+            tokens.forEach(token => {
+                if (token === '/') {
+                    result.push(' '); // Word break
+                    return;
+                }
+                
+                const char = map[token];
+                if (char) {
+                    result.push(char);
+                } else {
+                    // Unknown morse sequence
+                    result.push('?');
+                }
+            });
+
+            if (currentMode === 'JA') {
+                return processJapaneseDiacritics(result);
+            }
+
+            return result.join('');
+        }
+
+        function textToMorse(text) {
+            const map = currentMode === 'EN' ? MORSE_EN : MORSE_JA;
+            text = text.toUpperCase();
+            
+            // For Japanese, convert Hiragana to Katakana first
+            if (currentMode === 'JA') {
+                text = hiraToKata(text);
+                // Handle pre-composed Dakuten (e.g., ガ -> カ゛)
+                text = decomposeDakuten(text);
+            }
+
+            let result = [];
+            for (let char of text) {
+                if (char === ' ' || char === '　') {
+                    result.push('/'); // Word separator
+                } else if (map[char]) {
+                    result.push(map[char]);
+                } else {
+                    // Try to map implicitly if not found directly
+                    result.push('?'); 
+                }
+            }
+            return result.join(' ');
+        }
+
+        // Japanese specific processing
+        function processJapaneseDiacritics(chars) {
+            let processed = [];
+            for (let i = 0; i < chars.length; i++) {
+                const char = chars[i];
+                if (char === '゛') {
+                    if (processed.length > 0) {
+                        const prev = processed.pop();
+                        processed.push(DAKUTEN_MAP[prev] || (prev + '゛'));
+                    } else {
+                        processed.push('゛');
+                    }
+                } else if (char === '゜') {
+                    if (processed.length > 0) {
+                        const prev = processed.pop();
+                        processed.push(HANDAKUTEN_MAP[prev] || (prev + '゜'));
+                    } else {
+                        processed.push('゜');
+                    }
+                } else {
+                    processed.push(char);
+                }
+            }
+            return processed.join('');
+        }
+
+        function hiraToKata(str) {
+            return str.replace(/[\u3041-\u3096]/g, function(match) {
+                var chr = match.charCodeAt(0) + 0x60;
+                return String.fromCharCode(chr);
+            });
+        }
+
+        function decomposeDakuten(str) {
+            // Converts ガ to カ゛ for encoding
+            let res = '';
+            // Reverse maps
+            const revDakuten = Object.fromEntries(Object.entries(DAKUTEN_MAP).map(([k, v]) => [v, k]));
+            const revHandakuten = Object.fromEntries(Object.entries(HANDAKUTEN_MAP).map(([k, v]) => [v, k]));
+
+            for (let char of str) {
+                if (revDakuten[char]) {
+                    res += revDakuten[char] + '゛'; // Note: In logic we mapped this later, but for text->morse we need char then dakuten
+                } else if (revHandakuten[char]) {
+                    res += revHandakuten[char] + '゜';
+                } else {
+                    res += char;
+                }
+            }
+            return res;
+        }
+
+        function processInput() {
+            let val = inputEl.value;
+
+            // 三点リーダー (…) をドット3つ (...) に置換して処理する
+            // これにより、IME等で入力された三点リーダーもモールス信号として正しく認識されます
+            val = val.replace(/…/g, '...');
+
+            if (!val.trim()) {
+                outputEl.value = '';
+                return;
+            }
+
+            if (isMorse(val)) {
+                // Detecting Morse Input
+                outputEl.value = morseToText(val);
+                document.getElementById('output-card').classList.add('border-blue-300');
+            } else {
+                // Detecting Text Input
+                outputEl.value = textToMorse(val);
+                document.getElementById('output-card').classList.remove('border-blue-300');
+            }
+        }
+
+        // --- Event Listeners & UI Helpers ---
+
+        inputEl.addEventListener('input', processInput);
+
+        function clearAll() {
+            inputEl.value = '';
+            outputEl.value = '';
+            inputEl.focus();
+        }
+
+        function copyOutput() {
+            const text = outputEl.value;
+            if (text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const btn = document.querySelector('button[onclick="copyOutput()"]');
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> コピー完了';
+                    setTimeout(() => {
+                        btn.innerHTML = originalHTML;
+                    }, 2000);
+                });
+            }
+        }
+
+        function insertChar(char) {
+            inputEl.value += char;
+            processInput();
+            inputEl.focus();
+        }
+
+        // Initialize
+        setMode('EN');
+    </script>
+</body>
+</html>
